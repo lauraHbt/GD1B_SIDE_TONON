@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" /><title>Cold Way</title>
+<script
+src="//cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
+<style type="text/css"> body { margin: 0; }</style>
+</head>
+<body>
+    <script type="text/javascript">
+        var config = {
+        input:{gamepad:true},
+        type: Phaser.AUTO,
+        width: 5780, height: 1080,  pixelArt: true,
+        physics: {
+            default: 'arcade',
+            arcade: {
+                gravity: { y: 400 },
+                debug: false
+            }},
+        scene: {preload: preload, create: create, update: update }
+        };
+        new Phaser.Game(config);
+
+        function preload(){
+
+        // chargement tuiles de jeu
+        //this.load.image("tuile", "assets_Cold_Way/1_assets.png");
+        // chargement de la carte
+        //his.load.tilemapTiledJSON("carte", "assets_Cold_Way/carte-tiled.json");
+        //const carteDuNiveau = this.add.tilemap("carte");
+        // chargement du jeu de tuiles
+        //    const tileset = carteDuNiveau.addTilesetImage(
+        //        "tuiles_de_jeu",
+        //        "tuiles"
+        //    ); 
+        //    const plante = carteDuNiveau.createStaticLayer(
+        //        "plantes",
+        //        tileset
+        //    );
+        //    const plateformes = carteDuNiveau.createStaticLayer(
+        //        "sol",
+        //        tileset
+        //    );    
+        this.load.image('play', 'assets_Cold_Way/play.png');
+        this.load.image('sky', 'assets_Cold_Way/background.png');
+        this.load.image('ground', 'assets/platform.png');
+        this.load.image('star', 'assets/star.png');
+        this.load.image('pics', 'assets_Cold_Way/pics-glace.png');
+        this.load.spritesheet('perso','assets_Cold_Way/animation-marche-hero.png',
+        { frameWidth: 64, frameHeight: 48 });
+        this.load.spritesheet('hibou','assets_Cold_Way/animation-vole-monstre.png',
+        { frameWidth: 48, frameHeight: 48 });}
+
+        //Fonctions
+        var platforms;
+        var player;
+        var cursors;
+        var stars;
+        var vies;
+        vies = 100;
+        var TextVies;
+        var controls;
+        var control = '';
+        var gameOver = false;
+        var connect = false; 
+        var manette;
+        var change = false
+        var keyC;
+        var keyM;
+        var hibou;
+        var pics;
+        var hit = false;
+        var startTimer = false;
+
+        function create(){
+            this.add.image(2880, 540, 'sky');
+            //plateformes.setCollisionByProperty({ estsolide: true });
+            //this.physics.add.collider(player, plateformes); 
+
+            platforms = this.physics.add.staticGroup();
+            platforms.create(400, 1050, 'ground').setScale(2).refreshBody();
+
+            player = this.physics.add.sprite(50, 995, 'perso');
+            hibou = this.physics.add.sprite(150, 995, 'hibou');
+            pics = this.physics.add.sprite(200, 995, 'pics');
+            player.setBounce(0.2);
+            hibou.setBounce(0.2);
+            pics.setBounce(0.2);
+            player.setCollideWorldBounds(true);
+            hibou.setCollideWorldBounds(true);
+            pics.setCollideWorldBounds(true);
+            this.physics.add.collider(player, platforms);
+            //Perso
+            this.anims.create({
+                key: 'left',
+                frames: this.anims.generateFrameNumbers('perso', {start:0,end:6}),
+                frameRate: 8,
+                repeat: -1
+                });
+            this.anims.create({
+                key: 'turn',
+                frames: [ { key: 'perso', frame: 7 } ],
+                frameRate: 20
+                });
+            this.anims.create({
+                key: 'right',
+                frames: this.anims.generateFrameNumbers('perso', {start:7,end:13}),
+                frameRate: 8,
+                repeat: -1
+                });
+            //Hibou
+            this.anims.create({
+                key: 'vole',
+                frames: this.anims.generateFrameNumbers('hibou', {start:0,end:10}),
+                frameRate: 8,
+                repeat: -1
+                });
+            
+            //boutons
+            cursors = this.input.keyboard.createCursorKeys();
+            keyC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
+            keyM = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
+
+            //camera
+            this.physics.world.setBounds(0, 0, 5760, 1080);
+            this.cameras.main.setBounds(0, 0, 5760,1080);
+            this.player = player;
+            this.cameras.main.startFollow(this.player, true);
+            this.cameras.add(0, 0, 300, 100); //pour vie en hsaut à gauche
+            this.cameras.main.setZoom(3);
+            this.cameras.main.setSize(1280, 720);
+
+            TextVies=this.add.text(16,16,'Vies: 100',{fontSize:'32px',fill:'#000'});
+            controls=this.add.text(16,80,'Control: Clavier (m)',{fontSize:'20px',fill:'#000'});
+            
+            this.physics.add.collider(hibou, platforms);
+            this.physics.add.collider(pics, platforms);
+            hibou.anims.play('vole', true);
+            this.physics.add.collider(player, pics, hitGlace, null, this);
+            this.physics.add.overlap(player, hibou, hitMonstre, null, this);
+        }
+        function update(){
+
+                if (gameOver){return;}
+                this.input.on('pointerdown', function (pointer) {
+                    menuDebut.destroy();
+                    startTimer = true})
+                this.input.gamepad.once('connected', function (pad){
+                    connect = false
+                    manette = pad});
+                    //Clique sur M = Manette
+                    if (keyM.isDown && change == false)
+                        {console.log('Manette');
+                        change = true;
+                        control = 'Manette (c)';
+                        controls.setText('Control: ' + control);}
+                    //Clique sur C = Clavier  
+                    if (keyC.isDown && change == true)
+                        {console.log('Clavier');
+                        change = false;
+                        control = 'Clavier (m)';
+                        controls.setText('Control: ' + control);}
+
+                // Controls Clavier
+                if (change == false){
+                    if (cursors.left.isDown){
+                        player.setVelocityX(-120); 
+                        player.anims.play('left', true);} 
+                    else if (cursors.right.isDown){ 
+                        player.setVelocityX(120); 
+                        player.anims.play('right', true);} 
+                    else{ 
+                        player.setVelocityX(0); 
+                        player.anims.play('turn');} 
+                        if (cursors.up.isDown && player.body.touching.down){
+                            player.setVelocityY(-330);}
+                }
+                
+                // Controles Manette
+                if (connect == true && change == true)
+                { if (manette.leftStick.x == -1 ){
+                        player.setVelocityX(-120);
+                        player.anims.play('left', true);}
+                    else if (manette.leftStick.x == 1){
+                        player.setVelocityX(120);
+                        player.anims.play('right', true);} 
+                    else {
+                        player.setVelocityX(0);
+                        player.anims.play('turn');}
+                        if(manette.B && player.body.touching.down){
+                            {player.setVelocityY(-330)}}
+                    }
+                }
+        function hitMonstre(player,hibou){
+            hit = true
+            chrono = 0
+            if (hit == true){
+                chrono = 1; 
+                if (chrono == 1){
+                    chrono += 1
+                    player.setTint(0xff0000);
+                    hibou.disableBody(true, true);
+                    vies -= 10;
+                    TextVies.setText('Vies: '+ vies);}
+                if (chrono == 2){
+                    player.setTint();
+                    chrono = 0
+                }
+            }}
+
+        function collectStar(player, star){
+            star.disableBody(true, true); // l’étoile disparaît
+            if (stars.countActive(true) === 0){// si toutes les étoiles sont prises
+                stars.children.iterate(function (child) {
+                child.enableBody(true, child.x, 0, true, true);
+                }); // on les affiche toutes de nouveau
+                var x = (player.x < 400) ? Phaser.Math.Between(400, 800) :
+                    Phaser.Math.Between(0, 400);
+                    // si le perso est à gauche de l’écran, on met une bombe à droite
+                    // si non, on la met à gauche de l’écran
+                }
+            }
+        function hitGlace(player, pics){
+            this.physics.pause();
+            player.setTint(0xff0000);
+            player.anims.play('turn');
+            vies -= 100
+            TextVies.setText('Vies: '+ vies)
+            gameOver = true;
+            }
+    </script>
+    </body>
+</html>
